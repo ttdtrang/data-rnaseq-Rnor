@@ -43,7 +43,7 @@ ExpressionSet(assayData = gene.assayData)
 metadata = read.table(file.path(Sys.getenv('DBDIR'),
                                 'PRJNA239561_metadata_cleaned.tsv'), sep = '\t', header = TRUE)
 libnames <- colnames(gene.assayData$exprs) %>% as.character()
-gene.phenoData <- data.frame('RunId' = libnames) %>%
+phenoData <- data.frame('RunId' = libnames) %>%
     plyr::join(y = metadata, by = 'RunId', type = 'left')  %>%
     set_rownames(libnames) %>%
     Biobase::AnnotatedDataFrame(data = ., varMetadata = data.frame('labelDescription' = colnames(.), row.names = colnames(.)))   
@@ -84,7 +84,7 @@ experimentData <- new("MIAME",
 
 ```{r}
 rnor.rnaseq.gene <- ExpressionSet(assayData = gene.assayData,
-                             phenoData = gene.phenoData,
+                             phenoData = phenoData,
                              experimentData = experimentData,
                              featureData = gene.featureData,
                              annotation = 'Ensembl Rnor_6.0.99 cdna + ERCC-92'
@@ -93,6 +93,53 @@ rnor.rnaseq.gene <- ExpressionSet(assayData = gene.assayData,
 
 ## Transcript-level `ExpressionSet`
 
+### Assay data
 
+```{r}
+transcript.counts = readRDS(file.path(Sys.getenv('DBDIR'), 'matrix.est_counts.RDS'))
+transcript.tpm = readRDS(file.path(Sys.getenv('DBDIR'), 'matrix.tpm.RDS'))
+transcript.assayData <- new.env()
+assign('exprs', transcript.counts, envir = transcript.assayData) # exprs is required
+assign('count', transcript.counts, envir = transcript.assayData)
+assign('tpm', transcript.tpm, envir = transcript.assayData)
+ExpressionSet(assayData = transcript.assayData)
+```
 
+### Phenotypic data
+
+Same as above
+
+### Annotations and features
+
+```{r}
+# feature_attrs = read.table(file.path(Sys.getenv('DBDIR'), 'feature_attributes.tsv'), sep = '\t', header=TRUE, colClasses = 'character')
+transcript.featureData <- data.frame('transcript_id' = rownames(transcript.assayData$exprs)) %>%
+    plyr::join(y = feature_attrs[, c('transcript_id', 'location', 'transcript_biotype')], by = 'transcript_id', type = 'left') %>%
+    set_names(c('ID', 'Location', 'Biotype'))
+rownames(transcript.featureData) = transcript.featureData$ID
+transcript.featureData = transcript.featureData %>%
+    Biobase::AnnotatedDataFrame(data = ., varMetadata = data.frame('labelDescription' = colnames(.), row.names = colnames(.)))
+```
+
+### Experiment description
+
+Same as above
+
+### Assembling an `ExpressionSet`
+
+```{r}
+rnor.rnaseq.transcript <- ExpressionSet(assayData = transcript.assayData,
+                             phenoData = phenoData,
+                             experimentData = experimentData,
+                             featureData = transcript.featureData,
+                             annotation = 'Ensembl Rnor_6.0.99 cdna + ERCC-92'
+                             )
+```
+
+## Writing data sets
+
+```{r,eval=FALSE}
+usethis::use_data(rnor.rnaseq.gene,internal = FALSE, overwrite = TRUE)
+usethis::use_data(rnor.rnaseq.transcript,internal = FALSE, overwrite = TRUE)
+```
 
