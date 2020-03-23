@@ -1,0 +1,98 @@
+---
+title: "Create data package"
+author: "Trang Tran"
+date: "March 22, 2020"
+output: html_notebook
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+library(magrittr)
+library(ggplot2)
+library(Biobase)
+
+options(stringsAsFactors = FALSE)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+## Download count matrices and meta data, set environment variable 'DBDIR'
+
+```{r,eval = FALSE}
+Sys.setenv('DBDIR' = '.')
+```
+
+
+## Gene-level `ExpressionSet`
+
+### Assay data
+
+```{r}
+gene.counts = readRDS(file.path(Sys.getenv('DBDIR'), 'matrix.gene.est_counts.RDS'))
+gene.tpm = readRDS(file.path(Sys.getenv('DBDIR'), 'matrix.gene.tpm.RDS'))
+gene.assayData <- new.env()
+assign('exprs', gene.counts, envir = gene.assayData) # exprs is required
+assign('count', gene.counts, envir = gene.assayData)
+assign('tpm', gene.tpm, envir = gene.assayData)
+ExpressionSet(assayData = gene.assayData)
+```
+
+### Phenotypic data
+
+```{r}
+metadata = read.table(file.path(Sys.getenv('DBDIR'),
+                                'PRJNA239561_metadata_cleaned.tsv'), sep = '\t', header = TRUE)
+libnames <- colnames(gene.assayData$exprs) %>% as.character()
+gene.phenoData <- data.frame('RunId' = libnames) %>%
+    plyr::join(y = metadata, by = 'RunId', type = 'left')  %>%
+    set_rownames(libnames) %>%
+    Biobase::AnnotatedDataFrame(data = ., varMetadata = data.frame('labelDescription' = colnames(.), row.names = colnames(.)))   
+```
+
+### Annotations and features
+
+```{r}
+feature_attrs = read.table(file.path(Sys.getenv('DBDIR'),
+                                     'feature_attributes.tsv'),
+                           sep = '\t', header=TRUE, colClasses = 'character')
+is.gene.NA = which(is.na(feature_attrs$gene_id))
+feature_attrs[is.gene.NA, 'gene_id'] = feature_attrs[is.gene.NA, 'transcript_id']
+gene.featureData <- data.frame('gene_id' = rownames(gene.assayData$exprs)) %>%
+    plyr::join(y = feature_attrs[, c('gene_id', 'gene_biotype', 'gene_symbol')], by = 'gene_id', type = 'left') %>%
+    set_names(c('ID', 'Biotype', 'Symbol')) %>%
+    unique() 
+rownames(gene.featureData) = gene.featureData$ID
+gene.featureData = gene.featureData %>%
+    Biobase::AnnotatedDataFrame(data = ., varMetadata = data.frame('labelDescription' = colnames(.), row.names = colnames(.)))
+```
+
+### Experiment description
+
+```{r}
+experimentData <- new("MIAME",
+                      lab = "Center for Pharmacogenomics",
+                      contact = "leming.shi@gmail.com",
+                      title = "SEQC Toxicogenomics Study: RNA-Seq data set",
+                      abstract = "",
+                      other = list(
+                          citation = "Gong B, Wang C, Su Z, Hong H et al. Transcriptomic profiling of rat liver samples in a comprehensive study design by RNA-Seq. Sci Data 2014;1:140021. PMID: 25977778"
+                      )
+                      )
+```
+
+### Assembling an `ExpressionSet`
+
+```{r}
+rnor.rnaseq.gene <- ExpressionSet(assayData = gene.assayData,
+                             phenoData = gene.phenoData,
+                             experimentData = experimentData,
+                             featureData = gene.featureData,
+                             annotation = 'Ensembl Rnor_6.0.99 cdna + ERCC-92'
+                             )
+```
+
+## Transcript-level `ExpressionSet`
+
+
+
+
