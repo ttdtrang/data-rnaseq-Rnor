@@ -173,7 +173,43 @@ gene.featureData = gene.featureData %>%
 
 #### Phenotypic data
 
-Generated earlier.
+Biosample metadata
+
+```{r}
+metadata = read.table(file.path(Sys.getenv('DBDIR'),
+                                'PRJNA239561_metadata_cleaned.tsv'), sep = '\t', header = TRUE)
+```
+
+Re-processing stats
+
+```{r}
+starLog = read.table(file.path(Sys.getenv('DBDIR'), 'star-rsem',
+                               'starLog.final.tsv'), sep = '\t',header=TRUE)
+meta1 = data.frame(t(starLog[,-c(1,2)])) %>%
+    set_colnames(paste0('starAlignment.',starLog[[1]])) %>%
+    set_rownames(colnames(starLog)[-c(1,2)])
+meta1$RunId = rownames(meta1)
+str(meta1)
+```
+
+```{r}
+libnames <- colnames(gene.assayData$exprs) %>% as.character()
+allMeta <- data.frame('RunId' = libnames) %>%
+    plyr::join(y = metadata, by = 'RunId', type = 'left')  %>%
+    plyr::join(y = meta1, by = 'RunId', type = 'left') %>%
+    set_rownames(libnames)
+colDescription = colnames(allMeta)
+colDescription[grepl('starAlignment', colnames(allMeta))] = starLog[[2]]
+phenoData <-
+    Biobase::AnnotatedDataFrame(data = allMeta, varMetadata = data.frame('labelDescription' = colDescription, row.names = colnames(allMeta)))
+phenoData@varMetadata
+```
+
+Making sure sample order is preserved
+
+```{r}
+all(phenoData@data$RunId == colnames(gene.counts))
+```
 
 #### Experiment description
 
@@ -206,7 +242,7 @@ ExpressionSet(assayData = transcript.assayData)
 
 #### Phenotypic data
 
-Generated earlier.
+Same as that of gene-level data set.
 
 #### Annotations and features
 
