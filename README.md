@@ -36,7 +36,28 @@ For STAR-RSEM workflow, transcript-level and gene-level counts are collected fro
 
 1. `cd data-raw`
 2. Download all necessary raw data files.
-3. Set the environment variable `DBDIR` to point to the path containing said files
+3. Set the environment variable `DBDIR` to point to the path containing said files. It is assumed that files are organized into directories corresponding to workflow, e.g.
+```bash
+├── kallisto
+│   ├── feature_attributes.tsv
+│   ├── matrix.est_counts.RDS
+│   ├── matrix.gene.est_counts.RDS
+│   ├── matrix.gene.tpm.RDS
+│   └── matrix.tpm.RDS
+├── PRJNA239561_metadata_cleaned.tsv
+├── star-rsem
+│   ├── feature_attrs.rsem.transcripts.tsv
+│   ├── matrix.gene.expected_count.RDS
+│   ├── matrix.gene.tpm.RDS
+│   ├── matrix.transcripts.expected_count.RDS
+│   ├── matrix.transcripts.tpm.RDS
+│   └── starLog.final.tsv
+└── subread
+    ├── feature_attrs.featureCounts.genes.tsv
+    ├── featureCounts-summary.genes.tsv
+    ├── featureCounts-summary.transcripts.tsv
+    └── matrix.gene.featureCounts.RDS
+```
 4. Run the R notebook `make-data-package.Rmd` to assemble parts into `ExpressionSet` objects.
 
 You may need to change some code chunk setting from `eval=FALSE` to `eval=TRUE` to make sure all chunks would be run. These chunks are disabled by default to avoid overwriting existing data files in the folder.
