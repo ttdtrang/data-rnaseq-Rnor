@@ -22,51 +22,9 @@ knitr::opts_chunk$set(echo = TRUE)
 Sys.setenv('DBDIR' = '.')
 ```
 
+It is assumed that files are organized into directories corresponding to the workflow, i.e. `kallisto`, `star-rsem`, `subread`.
 
-## Gene-level `ExpressionSet`
-
-### Assay data
-
-```{r}
-gene.counts = readRDS(file.path(Sys.getenv('DBDIR'), 'matrix.gene.est_counts.RDS'))
-gene.tpm = readRDS(file.path(Sys.getenv('DBDIR'), 'matrix.gene.tpm.RDS'))
-gene.assayData <- new.env()
-assign('exprs', gene.counts, envir = gene.assayData) # exprs is required
-assign('count', gene.counts, envir = gene.assayData)
-assign('tpm', gene.tpm, envir = gene.assayData)
-ExpressionSet(assayData = gene.assayData)
-```
-
-### Phenotypic data
-
-```{r}
-metadata = read.table(file.path(Sys.getenv('DBDIR'),
-                                'PRJNA239561_metadata_cleaned.tsv'), sep = '\t', header = TRUE)
-libnames <- colnames(gene.assayData$exprs) %>% as.character()
-phenoData <- data.frame('RunId' = libnames) %>%
-    plyr::join(y = metadata, by = 'RunId', type = 'left')  %>%
-    set_rownames(libnames) %>%
-    Biobase::AnnotatedDataFrame(data = ., varMetadata = data.frame('labelDescription' = colnames(.), row.names = colnames(.)))   
-```
-
-### Annotations and features
-
-```{r}
-feature_attrs = read.table(file.path(Sys.getenv('DBDIR'),
-                                     'feature_attributes.tsv'),
-                           sep = '\t', header=TRUE, colClasses = 'character')
-is.gene.NA = which(is.na(feature_attrs$gene_id))
-feature_attrs[is.gene.NA, 'gene_id'] = feature_attrs[is.gene.NA, 'transcript_id']
-gene.featureData <- data.frame('gene_id' = rownames(gene.assayData$exprs)) %>%
-    plyr::join(y = feature_attrs[, c('gene_id', 'gene_biotype', 'gene_symbol')], by = 'gene_id', type = 'left') %>%
-    set_names(c('ID', 'Biotype', 'Symbol')) %>%
-    unique() 
-rownames(gene.featureData) = gene.featureData$ID
-gene.featureData = gene.featureData %>%
-    Biobase::AnnotatedDataFrame(data = ., varMetadata = data.frame('labelDescription' = colnames(.), row.names = colnames(.)))
-```
-
-### Experiment description
+## Experiment description - same for all data sets
 
 ```{r}
 experimentData <- new("MIAME",
@@ -80,10 +38,60 @@ experimentData <- new("MIAME",
                       )
 ```
 
-### Assembling an `ExpressionSet`
+
+## Kallisto workflow
+
+### Gene-level `ExpressionSet`
+
+#### Assay data
 
 ```{r}
-rnor.rnaseq.gene <- ExpressionSet(assayData = gene.assayData,
+gene.counts = readRDS(file.path(Sys.getenv('DBDIR'), 'kallisto', 'matrix.gene.est_counts.RDS'))
+gene.tpm = readRDS(file.path(Sys.getenv('DBDIR'), 'kallisto', 'matrix.gene.tpm.RDS'))
+gene.assayData <- new.env()
+assign('exprs', gene.counts, envir = gene.assayData) # exprs is required
+assign('count', gene.counts, envir = gene.assayData)
+assign('tpm', gene.tpm, envir = gene.assayData)
+ExpressionSet(assayData = gene.assayData)
+```
+
+#### Phenotypic data
+
+```{r}
+metadata = read.table(file.path(Sys.getenv('DBDIR'),
+                                'PRJNA239561_metadata_cleaned.tsv'), sep = '\t', header = TRUE)
+libnames <- colnames(gene.assayData$exprs) %>% as.character()
+phenoData <- data.frame('RunId' = libnames) %>%
+    plyr::join(y = metadata, by = 'RunId', type = 'left')  %>%
+    set_rownames(libnames) %>%
+    Biobase::AnnotatedDataFrame(data = ., varMetadata = data.frame('labelDescription' = colnames(.), row.names = colnames(.)))   
+```
+
+#### Annotations and features
+
+```{r}
+feature_attrs = read.table(file.path(Sys.getenv('DBDIR'), 'kallisto',
+                                     'feature_attributes.tsv'),
+                           sep = '\t', header=TRUE, colClasses = 'character')
+is.gene.NA = which(is.na(feature_attrs$gene_id))
+feature_attrs[is.gene.NA, 'gene_id'] = feature_attrs[is.gene.NA, 'transcript_id']
+gene.featureData <- data.frame('gene_id' = rownames(gene.assayData$exprs)) %>%
+    plyr::join(y = feature_attrs[, c('gene_id', 'gene_biotype', 'gene_symbol')], by = 'gene_id', type = 'left') %>%
+    set_names(c('ID', 'Biotype', 'Symbol')) %>%
+    unique() 
+rownames(gene.featureData) = gene.featureData$ID
+gene.featureData = gene.featureData %>%
+    Biobase::AnnotatedDataFrame(data = ., varMetadata = data.frame('labelDescription' = colnames(.), row.names = colnames(.)))
+```
+
+#### Experiment description
+
+Generated earlier, same for all data sets.
+
+#### Assembling an `ExpressionSet`
+
+```{r}
+rnor.rnaseq.gene.kallisto <- ExpressionSet(assayData = gene.assayData,
                              phenoData = phenoData,
                              experimentData = experimentData,
                              featureData = gene.featureData,
@@ -91,13 +99,13 @@ rnor.rnaseq.gene <- ExpressionSet(assayData = gene.assayData,
                              )
 ```
 
-## Transcript-level `ExpressionSet`
+### Transcript-level `ExpressionSet`
 
-### Assay data
+#### Assay data
 
 ```{r}
-transcript.counts = readRDS(file.path(Sys.getenv('DBDIR'), 'matrix.est_counts.RDS'))
-transcript.tpm = readRDS(file.path(Sys.getenv('DBDIR'), 'matrix.tpm.RDS'))
+transcript.counts = readRDS(file.path(Sys.getenv('DBDIR'), 'kallisto', 'matrix.est_counts.RDS'))
+transcript.tpm = readRDS(file.path(Sys.getenv('DBDIR'), 'kallisto', 'matrix.tpm.RDS'))
 transcript.assayData <- new.env()
 assign('exprs', transcript.counts, envir = transcript.assayData) # exprs is required
 assign('count', transcript.counts, envir = transcript.assayData)
@@ -105,11 +113,11 @@ assign('tpm', transcript.tpm, envir = transcript.assayData)
 ExpressionSet(assayData = transcript.assayData)
 ```
 
-### Phenotypic data
+#### Phenotypic data
 
 Same as above
 
-### Annotations and features
+#### Annotations and features
 
 ```{r}
 # feature_attrs = read.table(file.path(Sys.getenv('DBDIR'), 'feature_attributes.tsv'), sep = '\t', header=TRUE, colClasses = 'character')
@@ -121,14 +129,14 @@ transcript.featureData = transcript.featureData %>%
     Biobase::AnnotatedDataFrame(data = ., varMetadata = data.frame('labelDescription' = colnames(.), row.names = colnames(.)))
 ```
 
-### Experiment description
+#### Experiment description
 
 Same as above
 
-### Assembling an `ExpressionSet`
+#### Assembling an `ExpressionSet`
 
 ```{r}
-rnor.rnaseq.transcript <- ExpressionSet(assayData = transcript.assayData,
+rnor.rnaseq.transcript.kallisto <- ExpressionSet(assayData = transcript.assayData,
                              phenoData = phenoData,
                              experimentData = experimentData,
                              featureData = transcript.featureData,
@@ -136,10 +144,102 @@ rnor.rnaseq.transcript <- ExpressionSet(assayData = transcript.assayData,
                              )
 ```
 
+
+
+## STAR-RSEM workflow
+
+### Gene-level `ExpressionSet`
+
+#### Assay data
+
+```{r}
+gene.counts = readRDS(file.path(Sys.getenv('DBDIR'), 'star-rsem', 'matrix.gene.expected_count.RDS'))
+gene.tpm = readRDS(file.path(Sys.getenv('DBDIR'), 'star-rsem', 'matrix.gene.tpm.RDS'))
+gene.assayData <- new.env()
+assign('exprs', gene.counts, envir = gene.assayData) # exprs is required
+assign('expected_count', gene.counts, envir = gene.assayData)
+assign('tpm', gene.tpm, envir = gene.assayData)
+ExpressionSet(assayData = gene.assayData)
+```
+
+#### Annotations and features
+
+```{r}
+gene.featureData <- data.frame('ID' = rownames(gene.assayData$exprs))
+rownames(gene.featureData) = gene.featureData$ID
+gene.featureData = gene.featureData %>%
+    Biobase::AnnotatedDataFrame(data = ., varMetadata = data.frame('labelDescription' = colnames(.), row.names = colnames(.)))
+```
+
+#### Phenotypic data
+
+Generated earlier.
+
+#### Experiment description
+
+Generated earlier, same for all data sets.
+
+#### Assembling an `ExpressionSet`
+
+```{r}
+rnor.rnaseq.gene.star_rsem <- ExpressionSet(assayData = gene.assayData,
+                             phenoData = phenoData,
+                             experimentData = experimentData,
+                             featureData = gene.featureData,
+                             annotation = 'Ensembl Rnor_6.0.99 genome + ERCC-92'
+                             )
+```
+
+### Transcript-level `ExpressionSet`
+
+#### Assay data
+
+```{r}
+transcript.counts = readRDS(file.path(Sys.getenv('DBDIR'), 'star-rsem', 'matrix.transcripts.expected_count.RDS'))
+transcript.tpm = readRDS(file.path(Sys.getenv('DBDIR'), 'star-rsem', 'matrix.transcripts.tpm.RDS'))
+transcript.assayData <- new.env()
+assign('exprs', transcript.counts, envir = transcript.assayData) # exprs is required
+assign('expected_count', transcript.counts, envir = transcript.assayData)
+assign('tpm', transcript.tpm, envir = transcript.assayData)
+ExpressionSet(assayData = transcript.assayData)
+```
+
+#### Phenotypic data
+
+Generated earlier.
+
+#### Annotations and features
+
+```{r}
+feature_attrs = read.table(file.path(Sys.getenv('DBDIR'), 'star-rsem', 'feature_attrs.rsem.transcripts.tsv'), sep = '\t', header=TRUE, colClasses = 'character')
+transcript.featureData <- data.frame('transcript_id' = rownames(transcript.assayData$exprs)) %>%
+    plyr::join(y = feature_attrs[, c('transcript_id', 'gene_id', 'length', 'effective_length')], by = 'transcript_id', type = 'left') %>%
+    set_names(c('ID', 'GeneId', 'Length', 'EffectiveLength'))
+rownames(transcript.featureData) = transcript.featureData$ID
+transcript.featureData = transcript.featureData %>%
+    Biobase::AnnotatedDataFrame(data = ., varMetadata = data.frame('labelDescription' = colnames(.), row.names = colnames(.)))
+```
+
+#### Experiment description
+
+Generated earlier, same for all data sets.
+
+#### Assembling an `ExpressionSet`
+
+```{r}
+rnor.rnaseq.transcript.star_rsem <- ExpressionSet(assayData = transcript.assayData,
+                             phenoData = phenoData,
+                             experimentData = experimentData,
+                             featureData = transcript.featureData,
+                             annotation = 'Ensembl Rnor_6.0.99 genome + ERCC-92'
+                             )
+```
+
 ## Writing data sets
 
 ```{r,eval=FALSE}
-usethis::use_data(rnor.rnaseq.gene,internal = FALSE, overwrite = TRUE)
-usethis::use_data(rnor.rnaseq.transcript,internal = FALSE, overwrite = TRUE)
+usethis::use_data(rnor.rnaseq.gene.kallisto,internal = FALSE, overwrite = TRUE)
+usethis::use_data(rnor.rnaseq.transcript.kallisto,internal = FALSE, overwrite = TRUE)
+usethis::use_data(rnor.rnaseq.gene.star_rsem, internal = FALSE, overwrite = TRUE)
+usethis::use_data(rnor.rnaseq.transcript.star_rsem,internal = FALSE, overwrite = TRUE)
 ```
-
